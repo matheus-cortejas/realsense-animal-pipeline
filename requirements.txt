@@ -1,0 +1,10 @@
+numpy
+opencv-python
+open3d
+pyrealsense2
+ultralytics
+tqdm
+filterpy
+scikit-image
+lap
+##labelme

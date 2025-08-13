@@ -1,1 +1,0 @@
-# realsense-animal-pipeline
