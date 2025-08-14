@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import cv2
 
 model = YOLO('models/yolov8m-seg.pt')
-img = cv2.imread('data/generated/generatedRGB/000084.png')
+img = cv2.imread('data/generated/generatedRGB/000150.png')
 results = model(img)
 
 # results é uma lista; pegue o primeiro elemento

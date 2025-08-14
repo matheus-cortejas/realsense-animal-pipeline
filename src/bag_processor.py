@@ -1,16 +1,17 @@
 #python src/bag_processor.py --input data/raw_bags/1018142132.bag --output data/generated
 
-from pathlib import Path
+import pyrealsense2 as rs
 import numpy as np
 import cv2
+from pathlib import Path
 import os
-import pyrealsense2 as rs
 
 def process_bag(bag_path: str, output_dir: str):
     output_dir = Path(output_dir)
     (output_dir / "depth").mkdir(parents=True, exist_ok=True)
     (output_dir / "generatedIR").mkdir(parents=True, exist_ok=True)
     (output_dir / "generatedRGB").mkdir(parents=True, exist_ok=True)
+    (output_dir / "depth_aligned").mkdir(parents=True, exist_ok=True)  # NOVO: pasta para depth alinhado
 
     # Inicializa pipeline e configura para ler do .bag
     pipeline = rs.pipeline()
@@ -55,16 +56,32 @@ def process_bag(bag_path: str, output_dir: str):
     ir_idx = 0
     rgb_idx = 0
 
+    # NOVO: alinhador de depth para color
+    align = rs.align(rs.stream.color)
+
     try:
         while True:
             frames = pipeline.wait_for_frames()
-            # Depth
+            # Alinha todos os frames ao color
+            aligned_frames = align.process(frames)
+            aligned_depth_frame = aligned_frames.get_depth_frame()
+            color_frame = aligned_frames.get_color_frame()
+
+            # Depth (original)
             depth_frame = frames.get_depth_frame()
             if depth_frame:
                 depth_img = np.asanyarray(depth_frame.get_data())
                 depth_img = cv2.medianBlur(depth_img, 5)
                 np.save(output_dir / "depth" / f"{depth_idx:06d}.npy", depth_img)
-                depth_idx += 1
+
+            # Depth (alinhado ao RGB)
+            if aligned_depth_frame:
+                depth_aligned_img = np.asanyarray(aligned_depth_frame.get_data())
+                depth_aligned_img = cv2.medianBlur(depth_aligned_img, 5)
+                np.save(output_dir / "depth_aligned" / f"{depth_idx:06d}.npy", depth_aligned_img)
+
+            depth_idx += 1
+
             # IR
             ir_frame = frames.get_infrared_frame()
             if ir_frame:
@@ -73,12 +90,13 @@ def process_bag(bag_path: str, output_dir: str):
                 enhanced_ir = clahe.apply(ir_img)
                 cv2.imwrite(str(output_dir / "generatedIR" / f"{ir_idx:06d}.png"), enhanced_ir)
                 ir_idx += 1
-            # RGB
-            color_frame = frames.get_color_frame()
+
+            # RGB (alinhado)
             if color_frame:
                 color_img = np.asanyarray(color_frame.get_data())  # Já está em BGR
                 cv2.imwrite(str(output_dir / "generatedRGB" / f"{rgb_idx:06d}.png"), color_img)
                 rgb_idx += 1
+
     except RuntimeError:
         # Fim do arquivo .bag
         pass
